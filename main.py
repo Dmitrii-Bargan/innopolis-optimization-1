@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Union
 
 
 def show_function_from_cs(cs):
@@ -14,7 +15,16 @@ class SimplexSolver:
         MAXIMIZE = "maximize"
         MINIMIZE = "minimize"
 
-    def __init__(self, mode: Mode, c: list[int], a: list[list[int]], b: list[int], eps: int) -> None:
+    def __init__(self, mode: Mode, c: list[float], a: list[list[float]], b: list[float], eps: int) -> None:
+        """
+        Construct a Simplex method problem solver
+
+        :param mode: one of [Mode.MAXIMIZE] or [Mode.MINIMIZE]
+        :param c: coefficients of the objective function
+        :param a: matrix of the coefficients of the constraints
+        :param b: right hand side of the constraints equations
+        :param eps: solution accuracy. How many digits after the floating point to consider
+        """
         self.mode = mode
         self.c = c
         self.a = a
@@ -25,12 +35,15 @@ class SimplexSolver:
         self.z = [-i for i in c]
         self.isUnbounded = False
 
-    def print_problem(self):
+    def print_problem(self) -> None:
+        """
+        Print the simplex problem of this solveer
+        """
         print(f"{self.mode} z = {show_function_from_cs(self.c)}")
         print("subject to the constraints:")
         print("\n".join(f"{show_function_from_cs(cs)} <= {rhs}" for cs, rhs in zip(self.a, self.b)))
 
-    def to_standard_form(self):
+    def _to_standard_form(self):
         for row in range(len(self.a)):
             if 1 not in self.a[row]:
                 for row2 in range(len(self.a)):
@@ -41,7 +54,7 @@ class SimplexSolver:
             else:
                 self.base.append(self.a[row].index(1))
 
-    def pivot_column(self):
+    def _pivot_column(self):
         r = min(((i, self.z[i])
                  for i in range(len(self.z))
                  if self.z[i] < 0),
@@ -52,7 +65,7 @@ class SimplexSolver:
         else:
             return r
 
-    def pivot_row(self, col):
+    def _pivot_row(self, col):
         r = min(((i, self.b[i] / self.a[i][col])
                  for i in range(len(self.a))
                  if self.b[i] / self.a[i][col] > 0),
@@ -63,21 +76,21 @@ class SimplexSolver:
         else:
             return r
 
-    def check_unbounded(self, col):
-        return all(self.a[i][col]  <= 0 for i in range (len(self.a)))
+    def _check_unbounded(self, col):
+        return all(self.a[i][col] <= 0 for i in range(len(self.a)))
 
-    def step(self):
-        c = self.pivot_column()
+    def _step(self):
+        c = self._pivot_column()
         if c is None:
             return None
-        if self.check_unbounded(c):
+        if self._check_unbounded(c):
             self.isUnbounded = True
             return None
-        r = self.pivot_row(c)
+        r = self._pivot_row(c)
         if r is None:
             return None
         k = self.a[r][c]
-        self.base[r ] =c
+        self.base[r] = c
 
         # target row
         for col in range(len(self.a[r])):
@@ -105,16 +118,21 @@ class SimplexSolver:
         # for obj function
         m = self.z[c]
         for col in range(len(self.z)):
-            self.z[col ]-= m *self.a[r][col]
+            self.z[col] -= m * self.a[r][col]
             self.z[col] = round(self.z[col], self.eps)
 
         self.solution -= m * self.b[r]
         return 1
 
-    def solve(self):
-        self.to_standard_form()
+    def solve(self) -> Union[tuple[float, list[float]], None]:
+        """
+        Solve the problem in this solver and print the solution and X*,
+        or "Unbounded" if the objective function is unbounded
+        :return: a tuple (solution, X*) or [None] if the objective function is unbounded
+        """
+        self._to_standard_form()
         while True:
-            if self.step() is None:
+            if self._step() is None:
                 break
 
         # finding x* from base
@@ -125,108 +143,132 @@ class SimplexSolver:
         if not self.isUnbounded:
             print("Solution:", self.solution)
             print("x* =", x)
+            return self.solution, x
         else:
             print("Unbounded")
+            return None
 
 
-if __name__ == "__main__":
+def simplex_solve_and_check(
+        mode: SimplexSolver.Mode,
+        objective_function: list[float],
+        constraints_matrix: list[list[float]],
+        constraints_right_hand_side: list[float],
+        epsilon: int,
+        expected_solution: Union[float, None],
+) -> None:
+    """
+    Run the simplex solver with given data and assert-check the solution.
+
+    :param mode: [SimplexSolver] mode on whether to minimize or maximize the function
+    :param objective_function: coefficients of the objective function F(x_1, ..., x_m) = 0
+    :param constraints_matrix: coefficients of constraints equations Q_i (x_1, ..., x_m) <= rhs_i
+    :param constraints_right_hand_side: results of the constraints equations
+    :param epsilon: optimization accuracy. Number of digits after the floating point to consider
+    :param expected_solution: the expected solution of the optimization problem
+    """
+    solver = SimplexSolver(mode, objective_function, constraints_matrix, constraints_right_hand_side, epsilon)
+    solver.print_problem()
+    solutions = solver.solve()
+
+    if solutions is None:  # Unbounded function
+        assert expected_solution is None
+    else:
+        assert solutions[0] == expected_solution
+
+        answer = 0
+        for i in range(len(objective_function)):
+            answer += objective_function[i] * solutions[1][i]
+
+        assert answer == expected_solution
+
+
+def main() -> None:
     print("Example 1")
-    objective_function = [9, 10, 16]  # целевая функция
-    constraints_matrix = [
-        [18, 15, 12],
-        [6, 4, 8],
-        [5, 3, 3]
-    ]
-
-    constraints_rhs = [360, 192, 180]
-    epsilon = 5
-    solver = SimplexSolver(
+    simplex_solve_and_check(
         mode=SimplexSolver.Mode.MAXIMIZE,
-        c=objective_function,
-        a=constraints_matrix,
-        b=constraints_rhs,
-        eps=epsilon
+        objective_function=[9, 10, 16],
+        constraints_matrix=[
+            [18, 15, 12],
+            [6, 4, 8],
+            [5, 3, 3]
+        ],
+        constraints_right_hand_side=[360, 192, 180],
+        epsilon=5,
+        expected_solution=400
     )
-    solver.print_problem()
-    print()
-    solver.solve()
 
     print()
-
-    #ex2
-    objective_function = [5, 4]  # целевая функция
-    constraints_matrix = [
-        [1,0],
-        [1, -1]
-    ]
-
-    constraints_rhs = [7, 8]
-    epsilon = 5
-    solver = SimplexSolver(SimplexSolver.Mode.MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-    solver.print_problem()
-    print()
-    solver.solve()
+    print("--> Example 2. An unbounded objective function")
+    simplex_solve_and_check(
+        mode=SimplexSolver.Mode.MAXIMIZE,
+        objective_function=[5, 4],
+        constraints_matrix=[
+            [1, 0],
+            [1, -1]
+        ],
+        constraints_right_hand_side=[7, 8],
+        epsilon=5,
+        expected_solution=None
+    )
 
     print()
+    print("--> Example 3. Another unbounded function")
+    simplex_solve_and_check(
+        mode=SimplexSolver.Mode.MAXIMIZE,
+        objective_function=[5, 4],
+        constraints_matrix=[
+            [1, -1],
+            [1, 0]
+        ],
+        constraints_right_hand_side=[8, 7],
+        epsilon=5,
+        expected_solution=None
+    )
 
-    #ex3
-    objective_function = [5, 4]  # целевая функция
-    constraints_matrix = [
-        [1,-1],
-        [1, 0]
-    ]
-
-    constraints_rhs = [8, 7]
-    epsilon = 5
-    solver = SimplexSolver(SimplexSolver.Mode.MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-    solver.print_problem()
     print()
-    solver.solve()
+    print("--> Example 4")
+    simplex_solve_and_check(
+        mode=SimplexSolver.Mode.MAXIMIZE,
+        objective_function=[1, 2, 3],
+        constraints_matrix=[
+            [1, 1, 1],
+            [2, 1, 1],
+        ],
+        constraints_right_hand_side=[10, 20],
+        epsilon=5,
+        expected_solution=30
+    )
 
-    # Example 4
-    objective_function = [1, 2, 3]
-    constraints_matrix = [
-        [1,1, 1],
-        [2, 1, 1],
-    ]
-
-    constraints_rhs = [10, 20]
-    epsilon = 5
-    solver = SimplexSolver(SimplexSolver.Mode.MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-    solver.print_problem()
-    solver.solve()
-
-    # Example 5 - An unbounded function
-    # Taken from lab 5.1 - task 2
-    print("--> Example 5 - An unbounded function")
-    solver = SimplexSolver(
-        SimplexSolver.Mode.MAXIMIZE,
-        [2, 3],
-        [
+    print()
+    print("--> Example 5 - An unbounded function. Taken from lab 5.1, task 2")
+    simplex_solve_and_check(
+        mode=SimplexSolver.Mode.MAXIMIZE,
+        objective_function= [2, 3],
+        constraints_matrix=[
             [4, -2],
             [-1, -1]
         ],
-        [-4, -6],
-        5
+        constraints_right_hand_side=[-4, -6],
+        epsilon=5,
+        expected_solution=None
     )
-    solver.print_problem()
-    solver.solve()
-    print()
 
-    # Example 6 - More variables
-    # Taken from lab 2 - task 1
-    print("--> Example 6 - More variables")
-    solver = SimplexSolver(
-        SimplexSolver.Mode.MAXIMIZE,
-        [100, 140, 120],
-        [
+    print("--> Example 6 - More variables. Taken from lab 2, task 1")
+    simplex_solve_and_check(
+        mode=SimplexSolver.Mode.MAXIMIZE,
+        objective_function=[100, 140, 120],
+        constraints_matrix=[
             [3, 6, 7],
             [2, 1, 8],
             [1, 1, 1],
             [5, 3, 3]
         ],
-        [135, 260, 220, 360],
-        5
+        constraints_right_hand_side=[135, 260, 220, 360],
+        epsilon=5,
+        expected_solution=4500
     )
-    solver.print_problem()
-    solver.solve()
+
+
+if __name__ == "__main__":
+    main()
