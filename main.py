@@ -1,3 +1,5 @@
+from enum import Enum
+
 
 def show_function_from_cs(cs):
     if not cs:
@@ -5,13 +7,14 @@ def show_function_from_cs(cs):
     h, *t = cs
     return f"{h} * x1" + "".join(f"{' - ' if c < 0 else ' + '}{abs(c)} * x{i}"
                                  for i, c in enumerate(t, start=2))
-class simplex:
-    MODE_MAXIMIZE = "max"
-    MODE_MINIMIZE = "min"
 
-    def init(self, mode, c, a, b, eps):
-        if mode not in {self.MODE_MAXIMIZE, self.MODE_MINIMIZE}:
-            raise Exception(f"Unknown mode: {mode}")
+
+class SimplexSolver:
+    class Mode(str, Enum):
+        MAXIMIZE = "maximize"
+        MINIMIZE = "minimize"
+
+    def __init__(self, mode: Mode, c: list[int], a: list[list[int]], b: list[int], eps: int) -> None:
         self.mode = mode
         self.c = c
         self.a = a
@@ -59,14 +62,15 @@ class simplex:
             return r[0]
         else:
             return r
-    def checkUnbounded(self, col):
+
+    def check_unbounded(self, col):
         return all(self.a[i][col]  <= 0 for i in range (len(self.a)))
 
     def step(self):
         c = self.pivot_column()
         if c is None:
             return None
-        if self.checkUnbounded(c):
+        if self.check_unbounded(c):
             self.isUnbounded = True
             return None
         r = self.pivot_row(c)
@@ -118,74 +122,111 @@ class simplex:
         for i in range(len(self.base)):
             if self.base[i] != -1:
                 x[self.base[i]] = self.b[i]
-        if self.isUnbounded == False:
+        if not self.isUnbounded:
             print("Solution:", self.solution)
             print("x* =", x)
         else:
             print("Unbounded")
+
+
 if __name__ == "__main__":
-    pass
+    print("Example 1")
+    objective_function = [9, 10, 16]  # целевая функция
+    constraints_matrix = [
+        [18, 15, 12],
+        [6, 4, 8],
+        [5, 3, 3]
+    ]
 
-#ex1
-solver = simplex()
-objective_function = [9, 10, 16]  # целевая функция
-constraints_matrix = [
-    [18, 15, 12],
-    [6, 4, 8],
-    [5, 3, 3]
-]
+    constraints_rhs = [360, 192, 180]
+    epsilon = 5
+    solver = SimplexSolver(
+        mode=SimplexSolver.Mode.MAXIMIZE,
+        c=objective_function,
+        a=constraints_matrix,
+        b=constraints_rhs,
+        eps=epsilon
+    )
+    solver.print_problem()
+    print()
+    solver.solve()
 
-constraints_rhs = [360, 192, 180]
-epsilon = 5
-solver.init(solver.MODE_MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-solver.print_problem()
-print()
-solver.solve()
+    print()
 
-print()
-#ex2
-solver = simplex()
-objective_function = [5, 4]  # целевая функция
-constraints_matrix = [
-    [1,0],
-    [1, -1]
-]
+    #ex2
+    objective_function = [5, 4]  # целевая функция
+    constraints_matrix = [
+        [1,0],
+        [1, -1]
+    ]
 
-constraints_rhs = [7, 8]
-epsilon = 5
-solver.init(solver.MODE_MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-solver.print_problem()
-print()
-solver.solve()
+    constraints_rhs = [7, 8]
+    epsilon = 5
+    solver = SimplexSolver(SimplexSolver.Mode.MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
+    solver.print_problem()
+    print()
+    solver.solve()
 
-print()
-#ex3
-solver = simplex()
-objective_function = [5, 4]  # целевая функция
-constraints_matrix = [
-    [1,-1],
-    [1, 0]
-]
+    print()
 
-constraints_rhs = [8, 7]
-epsilon = 5
-solver.init(solver.MODE_MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-solver.print_problem()
-print()
-solver.solve()
+    #ex3
+    objective_function = [5, 4]  # целевая функция
+    constraints_matrix = [
+        [1,-1],
+        [1, 0]
+    ]
 
-#ex4
-solver = simplex()
-objective_function = [1, 2, 3]  # целевая функция
-constraints_matrix = [
-    [1,1, 1],
-    [2, 1, 1],
-]
+    constraints_rhs = [8, 7]
+    epsilon = 5
+    solver = SimplexSolver(SimplexSolver.Mode.MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
+    solver.print_problem()
+    print()
+    solver.solve()
 
-constraints_rhs = [10, 20]
-epsilon = 5
-solver.init(solver.MODE_MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
-solver.print_problem()
-print()
-solver.solve()
+    # Example 4
+    objective_function = [1, 2, 3]
+    constraints_matrix = [
+        [1,1, 1],
+        [2, 1, 1],
+    ]
 
+    constraints_rhs = [10, 20]
+    epsilon = 5
+    solver = SimplexSolver(SimplexSolver.Mode.MAXIMIZE, objective_function, constraints_matrix, constraints_rhs, epsilon)
+    solver.print_problem()
+    solver.solve()
+
+    # Example 5 - An unbounded function
+    # Taken from lab 5.1 - task 2
+    print("--> Example 5 - An unbounded function")
+    solver = SimplexSolver(
+        SimplexSolver.Mode.MAXIMIZE,
+        [2, 3],
+        [
+            [4, -2],
+            [-1, -1]
+        ],
+        [-4, -6],
+        5
+    )
+    solver.print_problem()
+    solver.solve()
+    print()
+
+    # Example 6 - More variables
+    # Taken from lab 2 - task 1
+    print("--> Example 6 - More variables")
+    solver = SimplexSolver(
+        SimplexSolver.Mode.MAXIMIZE,
+        [100, 140, 120],
+        [
+            [3, 6, 7],
+            [2, 1, 8],
+            [1, 1, 1],
+            [5, 3, 3]
+        ],
+        [135, 260, 220, 360],
+        5
+    )
+    solver.print_problem()
+    solver.solve()
