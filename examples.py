@@ -72,6 +72,7 @@ def main() -> None:
         expected_solution=None
     )
 
+    print()
     print("--> Example 6 - More variables. Taken from lab 2, task 1")
     simplex_solve_and_check(
         mode=SimplexSolver.Mode.MAXIMIZE,
@@ -85,6 +86,21 @@ def main() -> None:
         constraints_right_hand_side=[135, 260, 220, 360],
         epsilon=5,
         expected_solution=4500
+    )
+
+    print()
+    print("--> Example 7 - Minimization, taken from tutorial")
+    simplex_solve_and_check(
+        mode=SimplexSolver.Mode.MINIMIZE,
+        objective_function=[-2, 2, -6],
+        constraints_matrix=[
+            [2, 1, -2],
+            [1, 2, 4],
+            [1, -1, 2]
+        ],
+        constraints_right_hand_side=[24, 23, 10],
+        epsilon=2,
+        expected_solution=-30.75
     )
 
 

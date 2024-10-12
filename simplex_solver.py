@@ -18,8 +18,8 @@ def function_from_coefficients(coefficients: list[float]) -> str:
 
 class SimplexSolver:
     class Mode(str, Enum):
-        MAXIMIZE = "maximize"
-        MINIMIZE = "minimize"
+        MAXIMIZE = "Maximize"
+        MINIMIZE = "Minimize"
 
     def __init__(self, mode: Mode, c: list[float], a: list[list[float]], b: list[float], eps: int) -> None:
         """
@@ -126,25 +126,25 @@ class SimplexSolver:
         """
         return all(self.a[i][col] <= 0 for i in range(len(self.a)))
 
-    def _step(self) -> Union[int, None]:
+    def _step(self) -> bool:
         """
         Perform one iteration of the Simplex method
-        :return: [None] if this is the last step, 1 otherwise
+        :return: whether to continue iterating. [False] if this was the last step
         """
 
         # Get the index of the pivot column
         pivot_column = self._pivot_column()
 
         if pivot_column is None:  # If all columns are positive or zero, we are done
-            return None
+            return False
 
         if self._check_unbounded(pivot_column):  # if the column is unbounded we do not need to calculate further
             self.is_unbounded = True
-            return None
+            return False
 
         pivot_row = self._pivot_row(pivot_column)
         if pivot_row is None:  # If all ratios on this step are negative or zero, we stop
-            return None
+            return False
 
         k = self.a[pivot_row][pivot_column]
         self.base[pivot_row] = pivot_column
@@ -180,7 +180,7 @@ class SimplexSolver:
             self.z[col] = round(self.z[col], self.eps)
 
         self.solution -= m * self.b[pivot_row]
-        return 1
+        return True
 
     def solve(self) -> Union[tuple[float, list[float]], None]:
         """
@@ -189,28 +189,18 @@ class SimplexSolver:
         :return: a tuple (solution, X*) or [None] if the objective function is unbounded
         """
         self._to_standard_form()
+        while self._step():
+            pass
 
-        for row in range(len(self.a)):
-            print(str(self.base[row]) + " " + str(self.a[row]) + " " + str(self.b[row]))
-        while self._step() is not None:
-            print()
-            for row in range(len(self.a)):
-                print(str(self.base[row]) + " " + str(self.a[row]) + " " + str(self.b[row]))
-
-        # finding x* from base
-        print("Before finding x*, here is your tableau " + " ".join(map(str, self.base)))
-        print("And here is your tableau")
-        for row in range(len(self.a)):
-            print(str(self.base[row]) + " " + str(self.a[row]) + " " + str(self.b[row]))
-
+        # Find X* from base
         x = [0] * len(self.c)
         for i in range(len(self.base)):
             if self.base[i] != -1:
                 x[self.base[i]] = self.b[i]
 
         if not self.is_unbounded:
-            print("Solution:", self.solution)
-            print("x* =", x)
+            print("Solution: ", self.solution)
+            print("X* = ", x)
             return self.solution, x
         else:
             print("Unbounded")
@@ -239,8 +229,6 @@ def simplex_solve_and_check(
     solver.print_problem()
     solutions = solver.solve()
 
-    # TODO: Uncomment the assertations
-
     if solutions is None:  # Unbounded function
         assert expected_solution is None
     else:
@@ -250,24 +238,4 @@ def simplex_solve_and_check(
         for i in range(len(objective_function)):
             answer += objective_function[i] * solutions[1][i]
 
-        # assert answer == expected_solution
-
-
-def main() -> None:
-    simplex_solve_and_check(
-        mode=SimplexSolver.Mode.MAXIMIZE,
-        objective_function=[100, 140, 120],
-        constraints_matrix=[
-            [3, 6, 7],
-            [2, 1, 8],
-            [1, 1, 1],
-            [5, 3, 3]
-        ],
-        constraints_right_hand_side=[135, 260, 220, 360],
-        epsilon=5,
-        expected_solution=4500
-    )
-
-
-if __name__ == "__main__":
-    main()
+        assert answer == expected_solution
