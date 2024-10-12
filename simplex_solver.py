@@ -35,8 +35,11 @@ class SimplexSolver:
         self.mode: SimplexSolver.Mode = mode
         """Mode of this problem solver"""
 
-        self.c: list[float] = c
-        """Coefficients of the objective function"""
+        self.actual_coefficients: list[float] = c
+        """Coefficients of the objective function regardless of whether we are maximizing or minimizing"""
+
+        self.c: list[float] = c if mode == SimplexSolver.Mode.MAXIMIZE else [-j for j in c]
+        """Coefficients of the objective function. Inverted if we are minimizing"""
 
         self.a: list[list[float]] = a
         """Matrix of the coefficients of the constraints"""
@@ -53,7 +56,7 @@ class SimplexSolver:
         self.solution = 0
         """Optimal solution for this problem"""
 
-        self.z = [-i for i in c]
+        self.z = [-i for i in self.c]
         """Z-row of the tableau"""
 
         self.is_unbounded = False
@@ -63,7 +66,7 @@ class SimplexSolver:
         """
         Print the simplex problem of this solver
         """
-        print(f"{self.mode} z = {function_from_coefficients(self.c)}")
+        print(f"{self.mode} z = {function_from_coefficients(self.actual_coefficients)}")
         print("subject to the constraints:")
         print("\n".join(f"{function_from_coefficients(cs)} <= {rhs}" for cs, rhs in zip(self.a, self.b)))
 
@@ -110,7 +113,7 @@ class SimplexSolver:
         # and find the minimum of such ratios
         cell = min(((i, self.b[i] / self.a[i][pivot_column])
                     for i in range(len(self.a))
-                    if self.b[i] / self.a[i][pivot_column] > 0),  # TODO: Should we really check this here?
+                    if self.a[i][pivot_column] != 0 and self.b[i] / self.a[i][pivot_column] > 0),
                    default=None,
                    key=lambda x: x[1])
         if cell:
@@ -199,6 +202,9 @@ class SimplexSolver:
                 x[self.base[i]] = self.b[i]
 
         if not self.is_unbounded:
+            if self.mode == SimplexSolver.Mode.MINIMIZE:  # Flip the solution in case we were minimizing
+                self.solution *= -1
+
             print("Solution: ", self.solution)
             print("X* = ", x)
             return self.solution, x
