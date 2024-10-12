@@ -230,12 +230,20 @@ def simplex_solve_and_check(
     solutions = solver.solve()
 
     if solutions is None:  # Unbounded function
-        assert expected_solution is None
+        if expected_solution is not None:
+            raise ArithmeticError("Expected an unbounded function")
     else:
-        assert solutions[0] == expected_solution
+        if solutions[0] != expected_solution:
+            raise ArithmeticError(f"Expected solution {expected_solution}, got {solutions[0]}")
 
         answer = 0
         for i in range(len(objective_function)):
             answer += objective_function[i] * solutions[1][i]
 
-        assert answer == expected_solution
+        if answer != expected_solution:
+            raise ArithmeticError("X* coefficients do not produce expected solution")
+
+        for i in range(len(constraints_right_hand_side)):
+            calculated = sum([constraints_matrix[i][j] * solutions[1][j] for j in range(len(solutions[1]))])
+            if calculated > constraints_right_hand_side[i]:
+                raise ArithmeticError(f"Produced X* does not match {i}-th constraint")
