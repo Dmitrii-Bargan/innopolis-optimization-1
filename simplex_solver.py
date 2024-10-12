@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Union
+from math import isclose
 
 
 def function_from_coefficients(coefficients: list[float]) -> str:
@@ -246,7 +247,7 @@ def simplex_solve_and_check(
         for i in range(len(objective_function)):
             answer += objective_function[i] * solutions[1][i]
 
-        if answer != expected_solution:
+        if not isclose(answer, expected_solution, rel_tol=10**(-epsilon)):
             raise ArithmeticError("X* coefficients do not produce expected solution")
 
         for i in range(len(constraints_right_hand_side)):
