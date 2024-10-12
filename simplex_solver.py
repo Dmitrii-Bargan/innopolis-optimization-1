@@ -32,22 +32,22 @@ class SimplexSolver:
         :param eps: solution accuracy. How many digits after the floating point to consider
         """
 
-        self.mode = mode
+        self.mode: SimplexSolver.Mode = mode
         """Mode of this problem solver"""
 
-        self.c = c
+        self.c: list[float] = c
         """Coefficients of the objective function"""
 
-        self.a = a
+        self.a: list[list[float]] = a
         """Matrix of the coefficients of the constraints"""
 
-        self.b = b
+        self.b: list[float] = b
         """Right hand side of the constraints equations"""
 
-        self.eps = eps
+        self.eps: int = eps
         """Solution accuracy"""
 
-        self.base = []
+        self.base: list[int] = []
         """Indices of basic variables on this step"""
 
         self.solution = 0
@@ -68,16 +68,15 @@ class SimplexSolver:
         print("\n".join(f"{function_from_coefficients(cs)} <= {rhs}" for cs, rhs in zip(self.a, self.b)))
 
     def _to_standard_form(self) -> None:
+        """
+        Builds the tableau adding 1's and 0's for every slack variable
+        """
         for row in range(len(self.a)):
-            if 1 not in self.a[row]:
-                for row2 in range(len(self.a)):
-                    self.a[row2].append(1 if row == row2 else 0)
+            for row2 in range(len(self.a)):
+                self.a[row2].append(1 if row == row2 else 0)
 
-                # slack variables are denoted by 0
-                self.base.append(-1)
-                self.z.append(0)
-            else:
-                self.base.append(self.a[row].index(1))
+            self.base.append(-1)  # Put -1 for slack variables in the basic variables column
+            self.z.append(0)  # Slack variables have a "zero" coefficient in the objective function
 
     def _pivot_column(self) -> Union[int, None]:
         """
@@ -190,8 +189,13 @@ class SimplexSolver:
         :return: a tuple (solution, X*) or [None] if the objective function is unbounded
         """
         self._to_standard_form()
+
+        for row in range(len(self.a)):
+            print(str(self.base[row]) + " " + str(self.a[row]) + " " + str(self.b[row]))
         while self._step() is not None:
-            pass
+            print()
+            for row in range(len(self.a)):
+                print(str(self.base[row]) + " " + str(self.a[row]) + " " + str(self.b[row]))
 
         # finding x* from base
         print("Before finding x*, here is your tableau " + " ".join(map(str, self.base)))
@@ -238,9 +242,9 @@ def simplex_solve_and_check(
     # TODO: Uncomment the assertations
 
     if solutions is None:  # Unbounded function
-        pass  # assert expected_solution is None
+        assert expected_solution is None
     else:
-        # assert solutions[0] == expected_solution
+        assert solutions[0] == expected_solution
 
         answer = 0
         for i in range(len(objective_function)):
@@ -250,77 +254,6 @@ def simplex_solve_and_check(
 
 
 def main() -> None:
-    print("Example 1")
-    simplex_solve_and_check(
-        mode=SimplexSolver.Mode.MAXIMIZE,
-        objective_function=[9, 10, 16],
-        constraints_matrix=[
-            [18, 15, 12],
-            [6, 4, 8],
-            [5, 3, 3]
-        ],
-        constraints_right_hand_side=[360, 192, 180],
-        epsilon=5,
-        expected_solution=400
-    )
-
-    print()
-    print("--> Example 2. An unbounded objective function")
-    simplex_solve_and_check(
-        mode=SimplexSolver.Mode.MAXIMIZE,
-        objective_function=[5, 4],
-        constraints_matrix=[
-            [1, 0],
-            [1, -1]
-        ],
-        constraints_right_hand_side=[7, 8],
-        epsilon=5,
-        expected_solution=None
-    )
-
-    print()
-    print("--> Example 3. Another unbounded function")
-    simplex_solve_and_check(
-        mode=SimplexSolver.Mode.MAXIMIZE,
-        objective_function=[5, 4],
-        constraints_matrix=[
-            [1, -1],
-            [1, 0]
-        ],
-        constraints_right_hand_side=[8, 7],
-        epsilon=5,
-        expected_solution=None
-    )
-
-    print()
-    print("--> Example 4")
-    simplex_solve_and_check(
-        mode=SimplexSolver.Mode.MAXIMIZE,
-        objective_function=[1, 2, 3],
-        constraints_matrix=[
-            [1, 1, 1],
-            [2, 1, 1],
-        ],
-        constraints_right_hand_side=[10, 20],
-        epsilon=5,
-        expected_solution=30
-    )
-
-    print()
-    print("--> Example 5 - An unbounded function. Taken from lab 5.1, task 2")
-    simplex_solve_and_check(
-        mode=SimplexSolver.Mode.MAXIMIZE,
-        objective_function=[2, 3],
-        constraints_matrix=[
-            [4, -2],
-            [-1, -1]
-        ],
-        constraints_right_hand_side=[-4, -6],
-        epsilon=5,
-        expected_solution=None
-    )
-
-    print("--> Example 6 - More variables. Taken from lab 2, task 1")
     simplex_solve_and_check(
         mode=SimplexSolver.Mode.MAXIMIZE,
         objective_function=[100, 140, 120],
